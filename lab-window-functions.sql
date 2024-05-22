@@ -18,40 +18,44 @@ WHERE length IS NOT NULL;
 -- Produce a list that shows for each film in the Sakila database, the actor or actress who has acted in the greatest number of films, as well as the total number of films in which 
 -- they have acted. Hint: Use temporary tables, CTEs, or Views when appropiate to simplify your queries.
 
-DROP TEMPORARY TABLE IF EXISTS film_and_actor;
+-- DROP TEMPORARY TABLE IF EXISTS film_and_actor;
 
-CREATE TEMPORARY TABLE film_and_actor
-SELECT film.title AS film_name, 
-    CONCAT(actor.first_name,' ',actor.last_name) AS actor_name,
-    film_actor.actor_id AS actor_id,
-    film_actor.film_id AS film_id
-FROM film
-JOIN film_actor
-ON film.film_id = film_actor.film_id
-JOIN actor
-ON film_actor.actor_id = actor.actor_id;
-
-SELECT *
-FROM film_and_actor;
+-- CREATE TEMPORARY TABLE film_and_actor
+-- SELECT film.title AS film_name, 
+--     CONCAT(actor.first_name,' ',actor.last_name) AS actor_name,
+--     film_actor.actor_id AS actor_id,
+--     film_actor.film_id AS film_id
+-- FROM film
+-- JOIN film_actor
+-- ON film.film_id = film_actor.film_id
+-- JOIN actor
+-- ON film_actor.actor_id = actor.actor_id;
 
 WITH how_many AS (
 				SELECT actor_id,
 				COUNT(actor_id) AS appearance
 				FROM film_actor
 				GROUP BY actor_id
-				ORDER BY COUNT(actor_id)desc
-                )
+                ),
+film_and_actor AS (
+					SELECT film.title AS film_name, 
+					CONCAT(actor.first_name,' ',actor.last_name) AS actor_name,
+					film_actor.actor_id AS actor_id,
+					film_actor.film_id AS film_id,
+                    ROW_NUMBER() OVER (PARTITION BY film_id ORDER BY appearance desc) AS top
+					FROM film
+					JOIN film_actor
+					ON film.film_id = film_actor.film_id
+					JOIN actor
+					ON film_actor.actor_id = actor.actor_id
+                    JOIN how_many
+                    ON how_many.actor_id= actor.actor_id
+                    )
 SELECT 
-	film_and_actor.film_name,
-	film_and_actor.actor_name,
-	MAX(appearance) as appearances,
-    RANK() OVER(ORDER BY appearances)
-FROM how_many
-JOIN film_and_actor
-ON how_many.actor_id = film_and_actor.actor_id
-GROUP BY film_and_actor.film_name, film_and_actor.actor_name, how_many.actor_id
-ORDER BY appearances desc;
-
+	film_name,
+	actor_name
+FROM film_and_actor
+WHERE top = 1;
 
 -- Challenge 2
 
@@ -99,6 +103,8 @@ SELECT
 FROM user_lag
 ;
 -- Step 4. Calculate the number of retained customers every month, i.e., customers who rented movies in the current and previous months.
+
+
 
 SELECT customer_id AS active_user,
 		MONTH(payment_date) AS month,
